@@ -1,30 +1,26 @@
-from django.contrib.auth import get_user_model
 from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
-from rest_framework import serializers
+from rest_framework import serializers, status
 from rest_framework.validators import UniqueValidator
 
 from recipes.models import Ingredient, IngredientAmount, Recipe, Tag
-from users.models import Follow
-
-User = get_user_model()
+from users.models import Follow, User
 
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = '__all__'
+        fields = ['id', 'name', 'color', 'slug']
 
 
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = '__all__'
+        fields = ['id', 'name', 'measurement_unit']
 
 
 class AddIngredientToRecipeSerializer(serializers.ModelSerializer):
-    id = serializers.IntegerField()
     ingredient = serializers.ReadOnlyField(source='ingredient.name')
 
     class Meta:
@@ -120,6 +116,14 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
                 )
             ingredients_set.add(ingredient_id)
         data['ingredients'] = ingredients
+        tags = data['tags']
+        if not tags:
+            raise serializers.ValidationError(
+                'Нужен хотя бы один тэг для рецепта!')
+        for tag_name in tags:
+            if not Tag.objects.filter(name=tag_name).exists():
+                raise serializers.ValidationError(
+                    f'Тэга {tag_name} не существует!')
         return data
 
     def add_tags_ingredients(self, instance, **validated_data):
@@ -129,7 +133,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             instance.tags.add(tag)
 
         for ingredient in ingredients:
-            IngredientAmount.objects.create(
+            IngredientAmount.objects.bulk_create(
                 recipe=instance,
                 ingredients_id=ingredient.get('id'),
                 amount=ingredient.get('amount'))
@@ -181,6 +185,19 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
                   'is_subscribed', 'recipes', 'recipes_count')
+
+    def validate(self, data):
+        author = self.instance
+        user = self.context.get('request').user
+        if user == author:
+            raise serializers.ValidationError(
+                detail='Ошибка подписки, нельзя подписываться на себя',
+                status=status.HTTP_400_BAD_REQUEST)
+        if Follow.objects.filter(user=user, author=author).exists():
+            raise serializers.ValidationError(
+                detail='Ошибка подписки, вы уже подписаны на пользователя',
+                status=status.HTTP_400_BAD_REQUEST)
+        return data
 
     def get_is_subscribed(self, obj):
         return Follow.objects.filter(

@@ -2,7 +2,6 @@ from http import HTTPStatus
 
 from django.contrib.auth import get_user_model
 from django.db.models import BooleanField, Exists, OuterRef, Sum, Value
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet
 from rest_framework import viewsets
@@ -13,6 +12,7 @@ from rest_framework.response import Response
 from recipes.models import (Cart, Favorite, Ingredient, IngredientAmount,
                             Recipe, Tag)
 from users.models import Follow
+from utils import list_ingredients
 from .filters import IngredientSearchFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
 from .permissions import AdminOrReadOnly, AdminUserOrReadOnly
@@ -41,40 +41,27 @@ class FollowViewSet(UserViewSet):
     pagination_class = LimitPageNumberPagination
 
     @action(
-        methods=['post'], detail=True, permission_classes=[IsAuthenticated])
+        methods=['post', 'delete'],
+        detail=True,
+        permission_classes=[IsAuthenticated])
     def subscribe(self, request, id=None):
         user = request.user
         author = get_object_or_404(User, id=id)
 
-        if user == author:
-            return Response({
-                'errors': 'Ошибка подписки, нельзя подписываться на себя'},
-                status=HTTPStatus.BAD_REQUEST)
-        if Follow.objects.filter(user=user, author=author).exists():
-            return Response({
-                'errors': 'Ошибка подписки, вы уже подписаны на пользователя'},
-                status=HTTPStatus.BAD_REQUEST)
+        if request.method == 'POST':
+            serializer = FollowSerializer(
+                author, data=request.data, context={'request': request}
+            )
+            serializer.is_valid(raise_exception=True)
+            Follow.objects.create(user=user, author=author)
+            return Response(serializer.data, status=HTTPStatus.CREATED)
 
-        follow = Follow.objects.create(user=user, author=author)
-        serializer = FollowSerializer(follow, context={'request': request})
-        return Response(serializer.data, status=HTTPStatus.CREATED)
-
-    @subscribe.mapping.delete
-    def del_subscribe(self, request, id=None):
-        user = request.user
-        author = get_object_or_404(User, id=id)
-        if user == author:
-            return Response(
-                {'errors':
-                    'Ошибка отписки, нельзя отписываться от самого себя'},
-                status=HTTPStatus.BAD_REQUEST)
-        follow = Follow.objects.filter(user=user, author=author)
-        if not follow.exists():
-            return Response({
-                'errors': 'Ошибка отписки, вы уже отписались'},
-                status=HTTPStatus.BAD_REQUEST)
-        follow.delete()
-        return Response(status=HTTPStatus.NO_CONTENT)
+        if request.method == 'DELETE':
+            subscription = get_object_or_404(
+                Follow, user=user, author=author
+            )
+            subscription.delete()
+            return Response(status=HTTPStatus.NO_CONTENT)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
@@ -98,9 +85,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
         if self.request.method in SAFE_METHODS:
             return RecipeReadSerializer
         return RecipeWriteSerializer
-
-    # def perform_create(self, serializer):
-    #     serializer.save(author=self.request.user)
 
     def get_queryset(self):
         user = self.request.user
@@ -166,13 +150,4 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe__cart__user=request.user).values(
             'ingredients__name',
             'ingredients__measurement_unit').annotate(total=Sum('amount'))
-
-        shopping_cart = '\n'.join([
-            f'{ingredient["ingredients__name"]} - {ingredient["total"]} '
-            f'{ingredient["ingredients__measurement_unit"]}'
-            for ingredient in ingredients
-        ])
-        filename = 'shopping_cart.txt'
-        response = HttpResponse(shopping_cart, content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename={filename}'
-        return response
+        return list_ingredients(self, request, ingredients)

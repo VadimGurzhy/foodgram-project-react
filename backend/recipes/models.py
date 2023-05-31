@@ -1,8 +1,7 @@
-from django.contrib.auth import get_user_model
 from django.core import validators
 from django.db import models
 
-User = get_user_model()
+from users.models import User
 
 
 class Ingredient(models.Model):
@@ -27,7 +26,15 @@ class Tag(models.Model):
     name = models.CharField(
         verbose_name='Название', max_length=200, unique=True)
     color = models.CharField(
-        verbose_name='Цвет в HEX', max_length=7, unique=True)
+        max_length=7,
+        unique=True,
+        validators=[
+            validators.RegexValidator(
+                regex='^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$',
+                message='Введенное значение не является цветом в формате HEX!'
+            )
+        ]
+    )
     slug = models.SlugField(
         verbose_name='Уникальный слаг', max_length=200, unique=True)
 
