@@ -1,17 +1,16 @@
 from http import HTTPStatus
 
-from django.contrib.auth import get_user_model
-from django.db.models import BooleanField, Exists, OuterRef, Sum, Value
-from django.shortcuts import get_object_or_404
+from django.db.models import BooleanField, Exists, OuterRef, Value
+from django.shortcuts import get_object_or_404, HttpResponse
 from djoser.views import UserViewSet
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 
-from recipes.models import (Cart, Favorite, Ingredient, IngredientAmount,
+from recipes.models import (Cart, Favorite, Ingredient,
                             Recipe, Tag)
-from users.models import Follow
+from users.models import Follow, User
 from utils import list_ingredients
 from .filters import IngredientSearchFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
@@ -19,8 +18,6 @@ from .permissions import AdminOrReadOnly, AdminUserOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeWriteSerializer,
                           ShortRecipeSerializer, TagSerializer)
-
-User = get_user_model()
 
 
 class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -55,13 +52,6 @@ class FollowViewSet(UserViewSet):
             serializer.is_valid(raise_exception=True)
             Follow.objects.create(user=user, author=author)
             return Response(serializer.data, status=HTTPStatus.CREATED)
-
-        if request.method == 'DELETE':
-            subscription = get_object_or_404(
-                Follow, user=user, author=author
-            )
-            subscription.delete()
-            return Response(status=HTTPStatus.NO_CONTENT)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
@@ -146,8 +136,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
-        ingredients = IngredientAmount.objects.filter(
-            recipe__cart__user=request.user).values(
-            'ingredients__name',
-            'ingredients__measurement_unit').annotate(total=Sum('amount'))
-        return list_ingredients(self, request, ingredients)
+        shopping_cart = list_ingredients(request)
+        filename = 'shopping_cart.txt'
+        response = HttpResponse(shopping_cart, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename={filename}'
+        return response
