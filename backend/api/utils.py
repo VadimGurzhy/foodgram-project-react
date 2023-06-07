@@ -1,4 +1,5 @@
 from django.db.models import Sum
+
 from recipes.models import IngredientAmount
 
 
@@ -10,6 +11,6 @@ def list_ingredients(request):
     shopping_cart = '\n'.join([
             f'{ingredient["ingredients__name"]} - {ingredient["total"]} '
             f'{ingredient["ingredients__measurement_unit"]}'
-            for ingredient in ingredients
-        ])
+            for ingredient in ingredients]
+    )
     return shopping_cart

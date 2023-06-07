@@ -1,23 +1,23 @@
 from http import HTTPStatus
 
 from django.db.models import BooleanField, Exists, OuterRef, Value
-from django.shortcuts import get_object_or_404, HttpResponse
+from django.shortcuts import HttpResponse, get_object_or_404
 from djoser.views import UserViewSet
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 
-from recipes.models import (Cart, Favorite, Ingredient,
-                            Recipe, Tag)
+from recipes.models import Cart, Favorite, Ingredient, Recipe, Tag
 from users.models import Follow, User
-from utils import list_ingredients
+
 from .filters import IngredientSearchFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
 from .permissions import AdminOrReadOnly, AdminUserOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeWriteSerializer,
                           ShortRecipeSerializer, TagSerializer)
+from .utils import list_ingredients
 
 
 class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -44,14 +44,13 @@ class FollowViewSet(UserViewSet):
     def subscribe(self, request, id=None):
         user = request.user
         author = get_object_or_404(User, id=id)
-
         if request.method == 'POST':
             serializer = FollowSerializer(
                 author, data=request.data, context={'request': request}
             )
             serializer.is_valid(raise_exception=True)
             Follow.objects.create(user=user, author=author)
-            return Response(serializer.data, status=HTTPStatus.CREATED)
+        return Response(serializer.data, status=HTTPStatus.CREATED)
 
     @action(detail=False, permission_classes=[IsAuthenticated])
     def subscriptions(self, request):
