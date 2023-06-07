@@ -23,7 +23,7 @@ jobs:
     - name: Test with flake8
       run: |
         python -m flake8
-  build_and_push_to_docker_hub:
+  """build_and_push_to_docker_hub:
     name: Push Docker image to Docker Hub
     runs-on: ubuntu-latest
     needs: tests
@@ -54,7 +54,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/foodgram_backend:latest"""
 
   deploy:
     name: Deploy on Yandex.Cloud
@@ -69,8 +69,8 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.PASSPHRASE }}
           script: |
-            sudo docker pull vadimgurzhy/foodgram_backend:latest
-            sudo docker pull vadimgurzhy/foodgram_frontend:latest
+            sudo docker pull vadimgurzhy/foodgram_backend:v1
+            sudo docker pull vadimgurzhy/foodgram_frontend:v1
             sudo docker-compose stop
             sudo docker-compose rm backend
             sudo docker-compose rm frontend
