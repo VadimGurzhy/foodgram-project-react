@@ -1,12 +1,11 @@
-from django.db.models import F, Sum
+from django.db.models import Sum
 from recipes.models import IngredientAmount
 
 
-def list_ingredients(user):
+def list_ingredients(request):
     ingredients = IngredientAmount.objects.filter(
-        recipe__shopping_recipe__user=user).values(
-        name=F('ingredient__name'),
-        measurement_unit=F('ingredient__measurement_unit')
-    ).annotate(amount=Sum('amount')).values_list(
-        'ingredient__name', 'amount', 'ingredient__measurement_unit')
+        recipe__shopping_cart__user=request.user
+    ).values(
+        'ingredient__name', 'ingredient__measurement_unit'
+    ).annotate(amount=Sum('amount'))
     return ingredients

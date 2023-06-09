@@ -15,5 +15,3 @@ sqlparse==0.4.3
 python-dotenv==0.20.0
 djoser==2.1.0
 django-cors-headers==4.0.0
-weasyprint==52.5
-CairoSVG==2.5.2
