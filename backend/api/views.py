@@ -20,18 +20,20 @@ from .serializers import (FollowSerializer, IngredientSerializer,
 from .utils import list_ingredients
 
 
+class TagsViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = (AdminOrReadOnly,)
+    pagination_class = None
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+
+
 class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = (AdminOrReadOnly,)
+    pagination_class = None
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     filter_backends = (IngredientSearchFilter,)
     search_fields = ('^name',)
-
-
-class TagsViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = (AdminOrReadOnly,)
-    queryset = Tag.objects.all()
-    serializer_class = TagSerializer
 
 
 class FollowViewSet(UserViewSet):
