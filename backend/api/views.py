@@ -1,9 +1,10 @@
 from http import HTTPStatus
 
-from django.db.models import BooleanField, Exists, OuterRef, Value
+from django.db.models import BooleanField, Exists, OuterRef, Sum, Value
 from django.shortcuts import HttpResponse, get_object_or_404
 from djoser.views import UserViewSet
-from recipes.models import Cart, Favorite, Ingredient, Recipe, Tag
+from recipes.models import (Cart, Favorite, Ingredient, IngredientAmount,
+                            Recipe, Tag)
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
@@ -16,7 +17,8 @@ from .permissions import AdminOrReadOnly, AdminUserOrReadOnly
 from .serializers import (FollowSerializer, IngredientSerializer,
                           RecipeReadSerializer, RecipeWriteSerializer,
                           ShortRecipeSerializer, TagSerializer)
-from .utils import list_ingredients
+
+#from .utils import list_ingredients
 
 
 class TagsViewSet(viewsets.ReadOnlyModelViewSet):
@@ -136,17 +138,17 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
-        ingredient_list = "Cписок покупок:"
-        ingredients = list_ingredients(request.user)
-        for num, i in enumerate(ingredients):
-            ingredient_list += (
-                f"\n{i['ingredient__name']} - "
-                f"{i['amount']} {i['ingredient__measurement_unit']}")
-            if num < ingredients.count() - 1:
-                ingredient_list += ', '
-        file = 'shopping_list'
-        response = HttpResponse(
-            ingredient_list, 'Content-Type: application/pdf'
-        )
-        response['Content-Disposition'] = f'attachment; filename="{file}.pdf"'
+        ingredients = IngredientAmount.objects.filter(
+            recipe__cart__user=request.user).values(
+            'ingredients__name',
+            'ingredients__measurement_unit').annotate(total=Sum('amount'))
+
+        shopping_cart = '\n'.join([
+            f'{ingredient["ingredients__name"]} - {ingredient["total"]} '
+            f'{ingredient["ingredients__measurement_unit"]}'
+            for ingredient in ingredients
+        ])
+        filename = 'shopping_cart.txt'
+        response = HttpResponse(shopping_cart, content_type='text/plain')
+        response['Content-Disposition'] = f'attachment; filename={filename}'
         return response
