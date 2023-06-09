@@ -2,14 +2,15 @@ from http import HTTPStatus
 
 from django.db.models import BooleanField, Exists, OuterRef, Value
 from django.shortcuts import HttpResponse, get_object_or_404
+from django.template.loader import render_to_string
 from djoser.views import UserViewSet
+from recipes.models import Cart, Favorite, Ingredient, Recipe, Tag
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
-
-from recipes.models import Cart, Favorite, Ingredient, Recipe, Tag
 from users.models import Follow, User
+from weasyprint import HTML
 
 from .filters import IngredientSearchFilter, RecipeFilter
 from .pagination import LimitPageNumberPagination
@@ -137,8 +138,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=False, methods=['get'], permission_classes=[IsAuthenticated])
     def download_shopping_cart(self, request):
-        shopping_cart = list_ingredients(request.user)
-        filename = 'shopping_cart.txt'
-        response = HttpResponse(shopping_cart, content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename={filename}'
+        ingredients = list_ingredients(request.user)
+        html_template = render_to_string('recipes/pdf_template.html',
+                                         {'ingredients': ingredients})
+        html = HTML(string=html_template)
+        result = html.write_pdf()
+        response = HttpResponse(result, content_type='application/pdf;')
+        response['Content-Disposition'] = 'inline; filename=shopping_list.pdf'
+        response['Content-Transfer-Encoding'] = 'binary'
         return response
