@@ -133,7 +133,7 @@ class RecipeWriteSerializer(serializers.ModelSerializer):
             instance.tags.add(tag)
 
         for ingredient in ingredients:
-            IngredientAmount.objects.bulk_create(
+            IngredientAmount.objects.create(
                 recipe=instance,
                 ingredients_id=ingredient.get('id'),
                 amount=ingredient.get('amount'))
