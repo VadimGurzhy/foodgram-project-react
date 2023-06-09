@@ -28,7 +28,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'corsheaders',
     'django_filters',
-    'weasyprint',
 ]
 
 MIDDLEWARE = [
