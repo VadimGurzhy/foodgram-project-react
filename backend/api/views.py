@@ -28,7 +28,6 @@ class TagsViewSet(viewsets.ReadOnlyModelViewSet):
 
 class IngredientsViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = (AdminOrReadOnly,)
-    pagination_class = None
     queryset = Ingredient.objects.all()
     serializer_class = IngredientSerializer
     filter_backends = (IngredientSearchFilter,)
