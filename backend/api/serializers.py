@@ -1,6 +1,8 @@
+import base64
+
+from django.core.files.base import ContentFile
 from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from drf_extra_fields.fields import Base64ImageField
 from recipes.models import Ingredient, IngredientAmount, Recipe, Tag
 from rest_framework import serializers, status
 from rest_framework.validators import UniqueValidator
@@ -17,6 +19,15 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ['id', 'name', 'measurement_unit']
+
+
+class Base64ImageField(serializers.ImageField):
+    def to_internal_value(self, data):
+        if isinstance(data, str) and data.startswith('data:image'):
+            format, imgstr = data.split(';base64,')
+            ext = format.split('/')[-1]
+            data = ContentFile(base64.b64decode(imgstr), name='temp.' + ext)
+        return super().to_internal_value(data)
 
 
 class AddIngredientToRecipeSerializer(serializers.ModelSerializer):
