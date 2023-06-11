@@ -2,7 +2,7 @@ from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from recipes.models import Ingredient, IngredientAmount, Recipe, Tag
-from rest_framework import serializers, status
+from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from users.models import Follow, User
 
@@ -178,19 +178,6 @@ class FollowSerializer(serializers.ModelSerializer):
         model = Follow
         fields = ('id', 'email', 'username', 'first_name', 'last_name',
                   'is_subscribed', 'recipes', 'recipes_count')
-
-    def validate(self, data):
-        author = self.instance
-        user = self.context.get('request').user
-        if user == author:
-            raise serializers.ValidationError(
-                detail='Ошибка подписки, нельзя подписываться на себя',
-                status=status.HTTP_400_BAD_REQUEST)
-        if Follow.objects.filter(user=user, author=author).exists():
-            raise serializers.ValidationError(
-                detail='Ошибка подписки, вы уже подписаны на пользователя',
-                status=status.HTTP_400_BAD_REQUEST)
-        return data
 
     def get_is_subscribed(self, obj):
         return Follow.objects.filter(
